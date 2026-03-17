@@ -1,7 +1,6 @@
 class AppConstants {
   static const String appName = 'Enviable Transport';
   static const String apiBaseUrl = 'https://api.enviabletransport.ng';
-  static const String devApiBaseUrl = 'http://10.0.2.2:8000';
   static const String apiPrefix = '/api/v1';
   static const String currency = 'NGN';
   static const String currencySymbol = '₦';

@@ -11,7 +11,7 @@ class ApiClient {
   ApiClient({required TokenStorage tokenStorage}) : _tokenStorage = tokenStorage {
     _dio = Dio(
       BaseOptions(
-        baseUrl: '${kDebugMode ? AppConstants.devApiBaseUrl : AppConstants.apiBaseUrl}${AppConstants.apiPrefix}',
+        baseUrl: '${AppConstants.apiBaseUrl}${AppConstants.apiPrefix}',
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: {'Content-Type': 'application/json'},
@@ -52,7 +52,7 @@ class ApiClient {
       if (refreshToken == null) return false;
 
       final response = await Dio().post(
-        '${kDebugMode ? AppConstants.devApiBaseUrl : AppConstants.apiBaseUrl}${AppConstants.apiPrefix}/auth/refresh',
+        '${AppConstants.apiBaseUrl}${AppConstants.apiPrefix}/auth/refresh',
         data: {'refresh_token': refreshToken},
       );
 
