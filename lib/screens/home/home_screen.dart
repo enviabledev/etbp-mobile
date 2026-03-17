@@ -7,6 +7,7 @@ import 'package:etbp_mobile/core/api/endpoints.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/utils/formatters.dart';
 import 'package:etbp_mobile/models/route.dart';
+import 'package:etbp_mobile/widgets/home/terminal_autocomplete.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -76,9 +77,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppTheme.border)),
                 child: Column(
                   children: [
-                    TextFormField(decoration: const InputDecoration(labelText: 'From', prefixIcon: Icon(Icons.my_location, size: 20)), onChanged: (v) => _origin = v),
+                    TerminalAutocomplete(
+                      api: ref.read(apiClientProvider),
+                      label: 'From',
+                      icon: Icons.my_location,
+                      onSelected: (v) => _origin = v,
+                    ),
                     const SizedBox(height: 12),
-                    TextFormField(decoration: const InputDecoration(labelText: 'To', prefixIcon: Icon(Icons.location_on, size: 20)), onChanged: (v) => _destination = v),
+                    TerminalAutocomplete(
+                      api: ref.read(apiClientProvider),
+                      label: 'To',
+                      icon: Icons.location_on,
+                      onSelected: (v) => _destination = v,
+                    ),
                     const SizedBox(height: 12),
                     Row(children: [
                       Expanded(
