@@ -6,6 +6,7 @@ import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/utils/validators.dart';
 import 'package:etbp_mobile/widgets/common/phone_input.dart';
 import 'package:etbp_mobile/widgets/common/otp_verification_sheet.dart';
+import 'package:etbp_mobile/providers/booking_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -45,7 +46,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (state.hasError) {
       setState(() => _error = state.error.toString());
     } else if (state.hasValue && state.value != null && mounted) {
-      context.go('/home');
+      final hasBooking = ref.read(bookingProvider).trip != null;
+      context.go(hasBooking ? '/booking/passengers' : '/home');
     }
   }
 

@@ -67,6 +67,41 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
 
   Future<void> _continue() async {
     if (_selectedIds.isEmpty || _trip == null) return;
+
+    // Check auth — show dialog if not logged in
+    final user = ref.read(authStateProvider).value;
+    if (user == null) {
+      // Save trip + seats to provider so they persist across login
+      final selectedSeatObjects = (_seatMap?.seats ?? [])
+          .where((s) => _selectedIds.contains(s.id))
+          .toList();
+      final notifier = ref.read(bookingProvider.notifier);
+      notifier.setTrip(_trip!);
+      notifier.setSelectedSeats(selectedSeatObjects);
+
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Login to continue'),
+          content: const Text(
+            'Please login or create an account to complete your booking. Your seat selection will be saved.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () { Navigator.pop(context); context.push('/login'); },
+              child: const Text('Login'),
+            ),
+            TextButton(
+              onPressed: () { Navigator.pop(context); context.push('/register'); },
+              child: Text('Register', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     setState(() => _locking = true);
     try {
       final api = ref.read(apiClientProvider);

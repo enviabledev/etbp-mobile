@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/utils/validators.dart';
+import 'package:etbp_mobile/providers/booking_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +32,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (state.hasError) {
       setState(() => _error = state.error.toString());
     } else if (state.hasValue && state.value != null && mounted) {
-      context.go('/home');
+      // If there's a pending booking, go to passengers instead of home
+      final hasBooking = ref.read(bookingProvider).trip != null;
+      context.go(hasBooking ? '/booking/passengers' : '/home');
     }
   }
 
