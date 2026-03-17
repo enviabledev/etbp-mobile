@@ -13,7 +13,8 @@ class SeatSelectionScreen extends ConsumerStatefulWidget {
   final String tripId;
   const SeatSelectionScreen({super.key, required this.tripId});
   @override
-  ConsumerState<SeatSelectionScreen> createState() => _SeatSelectionScreenState();
+  ConsumerState<SeatSelectionScreen> createState() =>
+      _SeatSelectionScreenState();
 }
 
 class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
@@ -36,9 +37,13 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
       final seatsRes = await api.get(Endpoints.tripSeats(widget.tripId));
       setState(() {
         _trip = TripSearchResult(
-          id: tripRes.data['id'], departureDate: tripRes.data['departure_date'] ?? '',
-          departureTime: tripRes.data['departure_time'] ?? '', price: (tripRes.data['price'] ?? 0).toDouble(),
-          route: TripRoute.fromJson(routeRes.data), availableSeats: tripRes.data['available_seats'] ?? 0, totalSeats: tripRes.data['total_seats'] ?? 0,
+          id: tripRes.data['id'],
+          departureDate: tripRes.data['departure_date'] ?? '',
+          departureTime: tripRes.data['departure_time'] ?? '',
+          price: (tripRes.data['price'] ?? 0).toDouble(),
+          route: TripRoute.fromJson(routeRes.data),
+          availableSeats: tripRes.data['available_seats'] ?? 0,
+          totalSeats: tripRes.data['total_seats'] ?? 0,
         );
         _seatMap = SeatMap.fromJson(seatsRes.data);
         _loading = false;
@@ -50,73 +55,163 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
 
   void _toggleSeat(String id) {
     setState(() {
-      if (_selectedIds.contains(id)) { _selectedIds.remove(id); } else { _selectedIds.add(id); }
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
     });
   }
 
   Future<void> _continue() async {
     if (_selectedIds.isEmpty) return;
-    // Lock seats then navigate
     try {
       final api = ref.read(apiClientProvider);
-      await api.post(Endpoints.lockSeats(widget.tripId), data: {'seat_ids': _selectedIds.toList()});
+      await api.post(Endpoints.lockSeats(widget.tripId),
+          data: {'seat_ids': _selectedIds.toList()});
       if (mounted) context.push('/booking/passengers');
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     final seats = _seatMap?.seats ?? [];
-    final rows = <int, List<Seat>>{};
-    for (final s in seats) { rows.putIfAbsent(s.seatRow, () => []).add(s); }
-    final sortedRows = rows.keys.toList()..sort();
+
+    // Group seats by row
+    final rowMap = <int, Map<int, Seat>>{};
+    int maxCol = 0;
+    for (final s in seats) {
+      rowMap.putIfAbsent(s.seatRow, () => {});
+      rowMap[s.seatRow]![s.seatColumn] = s;
+      if (s.seatColumn > maxCol) maxCol = s.seatColumn;
+    }
+    final sortedRows = rowMap.keys.toList()..sort();
+
+    // Detect aisle columns — columns that have NO seats in ANY row
+    final occupiedCols = <int>{};
+    for (final colMap in rowMap.values) {
+      occupiedCols.addAll(colMap.keys);
+    }
+    final aisleCols = <int>{};
+    for (int c = 1; c <= maxCol; c++) {
+      if (!occupiedCols.contains(c)) aisleCols.add(c);
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Select Seats')),
       body: Column(
         children: [
-          if (_trip != null) Container(
-            padding: const EdgeInsets.all(16), color: Colors.white,
-            child: Row(children: [
-              Text('${_trip!.route.originTerminal.city} → ${_trip!.route.destinationTerminal.city}', style: const TextStyle(fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Text(formatCurrency(_trip!.price), style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary)),
-            ]),
-          ),
+          // Trip summary
+          if (_trip != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: Colors.white,
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                    '${_trip!.route.originTerminal.city} → ${_trip!.route.destinationTerminal.city}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Text(formatCurrency(_trip!.price),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, color: AppTheme.primary)),
+              ]),
+            ),
+
           // Legend
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _legend(Colors.blue.shade100, 'Available'), const SizedBox(width: 16),
-              _legend(Colors.green.shade200, 'Selected'), const SizedBox(width: 16),
-              _legend(Colors.grey.shade300, 'Booked'),
-            ]),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _legend(const Color(0xFFE2E8F0), 'Available'),
+                const SizedBox(width: 12),
+                _legend(AppTheme.primary, 'Selected'),
+                const SizedBox(width: 12),
+                _legend(const Color(0xFF94A3B8), 'Booked'),
+                const SizedBox(width: 12),
+                _legend(AppTheme.warning, 'Locked'),
+              ],
+            ),
           ),
+
+          // Seat grid
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(children: sortedRows.map((row) {
-                final rowSeats = rows[row]!..sort((a, b) => a.seatColumn.compareTo(b.seatColumn));
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: rowSeats.map((seat) {
-                    final selected = _selectedIds.contains(seat.id);
-                    final color = seat.isBooked || seat.isLocked ? Colors.grey.shade300 : selected ? Colors.green.shade200 : Colors.blue.shade100;
-                    return GestureDetector(
-                      onTap: seat.isAvailable ? () => _toggleSeat(seat.id) : null,
-                      child: Container(
-                        width: 44, height: 44, margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6), border: selected ? Border.all(color: AppTheme.primary, width: 2) : null),
-                        child: Center(child: Text(seat.seatNumber, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: seat.isAvailable ? AppTheme.textPrimary : Colors.grey))),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                children: [
+                  // "Front" label
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text('FRONT',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textSecondary,
+                            letterSpacing: 2)),
+                  ),
+                  // Rows
+                  ...sortedRows.map((rowNum) {
+                    final colMap = rowMap[rowNum]!;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(maxCol, (i) {
+                          final col = i + 1;
+
+                          // Aisle gap
+                          if (aisleCols.contains(col)) {
+                            return const SizedBox(width: 24);
+                          }
+
+                          final seat = colMap[col];
+                          if (seat == null) {
+                            // Empty cell (no seat at this position)
+                            return Container(
+                              width: 46,
+                              height: 46,
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                            );
+                          }
+
+                          final selected = _selectedIds.contains(seat.id);
+                          return _buildSeat(seat, selected);
+                        }),
                       ),
                     );
-                  }).toList()),
-                );
-              }).toList()),
+                  }),
+                  // "Back" label
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Text('BACK',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textSecondary,
+                            letterSpacing: 2)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Seat count
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              '${_seatMap?.availableSeats ?? 0} of ${_seatMap?.totalSeats ?? 0} seats available',
+              style:
+                  const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
             ),
           ),
         ],
@@ -126,7 +221,51 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
           padding: const EdgeInsets.all(16),
           child: ElevatedButton(
             onPressed: _selectedIds.isEmpty ? null : _continue,
-            child: Text('Continue (${_selectedIds.length} seat${_selectedIds.length == 1 ? '' : 's'})'),
+            child: Text(
+                'Continue (${_selectedIds.length} seat${_selectedIds.length == 1 ? '' : 's'})'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSeat(Seat seat, bool selected) {
+    Color bgColor;
+    Color textColor;
+    Border? border;
+
+    if (selected) {
+      bgColor = AppTheme.primary;
+      textColor = Colors.white;
+      border = Border.all(color: AppTheme.primary, width: 2);
+    } else if (seat.isBooked) {
+      bgColor = const Color(0xFF94A3B8);
+      textColor = Colors.white;
+    } else if (seat.isLocked) {
+      bgColor = AppTheme.warning.withValues(alpha: 0.3);
+      textColor = AppTheme.warning;
+    } else {
+      // Available
+      bgColor = const Color(0xFFE2E8F0);
+      textColor = AppTheme.textPrimary;
+    }
+
+    return GestureDetector(
+      onTap: seat.isAvailable ? () => _toggleSeat(seat.id) : null,
+      child: Container(
+        width: 46,
+        height: 46,
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+          border: border,
+        ),
+        child: Center(
+          child: Text(
+            seat.seatNumber,
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600, color: textColor),
           ),
         ),
       ),
@@ -134,8 +273,13 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
   }
 
   Widget _legend(Color color, String label) => Row(children: [
-    Container(width: 16, height: 16, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-    const SizedBox(width: 4),
-    Text(label, style: const TextStyle(fontSize: 12)),
-  ]);
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(3)),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11)),
+      ]);
 }
