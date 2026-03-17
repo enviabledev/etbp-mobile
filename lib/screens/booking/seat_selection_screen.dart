@@ -8,6 +8,7 @@ import 'package:etbp_mobile/core/utils/formatters.dart';
 import 'package:etbp_mobile/models/seat.dart';
 import 'package:etbp_mobile/models/trip.dart';
 import 'package:etbp_mobile/models/route.dart';
+import 'package:etbp_mobile/providers/booking_provider.dart';
 
 class SeatSelectionScreen extends ConsumerStatefulWidget {
   final String tripId;
@@ -22,6 +23,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
   TripSearchResult? _trip;
   final Set<String> _selectedIds = {};
   bool _loading = true;
+  bool _locking = false;
 
   @override
   void initState() {
@@ -64,17 +66,34 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
   }
 
   Future<void> _continue() async {
-    if (_selectedIds.isEmpty) return;
+    if (_selectedIds.isEmpty || _trip == null) return;
+    setState(() => _locking = true);
     try {
       final api = ref.read(apiClientProvider);
-      await api.post(Endpoints.lockSeats(widget.tripId),
+      final response = await api.post(Endpoints.lockSeats(widget.tripId),
           data: {'seat_ids': _selectedIds.toList()});
+
+      final selectedSeatObjects = (_seatMap?.seats ?? [])
+          .where((s) => _selectedIds.contains(s.id))
+          .toList();
+
+      final notifier = ref.read(bookingProvider.notifier);
+      notifier.setTrip(_trip!);
+      notifier.setSelectedSeats(selectedSeatObjects);
+
+      final lockedUntil = response.data['locked_until'];
+      if (lockedUntil != null) {
+        notifier.setLockExpiry(DateTime.parse(lockedUntil));
+      }
+
       if (mounted) context.push('/booking/passengers');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.toString())));
       }
+    } finally {
+      if (mounted) setState(() => _locking = false);
     }
   }
 
@@ -220,9 +239,10 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: ElevatedButton(
-            onPressed: _selectedIds.isEmpty ? null : _continue,
-            child: Text(
-                'Continue (${_selectedIds.length} seat${_selectedIds.length == 1 ? '' : 's'})'),
+            onPressed: _selectedIds.isEmpty || _locking ? null : _continue,
+            child: _locking
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : Text('Continue (${_selectedIds.length} seat${_selectedIds.length == 1 ? '' : 's'})'),
           ),
         ),
       ),
