@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/api/endpoints.dart';
@@ -18,6 +21,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   Booking? _booking;
   bool _loading = true;
   bool _cancelling = false;
+  bool _sharing = false;
+  bool _downloading = false;
 
   @override
   void initState() {
@@ -36,6 +41,41 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       });
     } catch (_) {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<File> _fetchTicketPdf() async {
+    final api = ref.read(apiClientProvider);
+    final response = await api.download(Endpoints.eTicket(widget.ref));
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/ticket_${widget.ref}.pdf');
+    await file.writeAsBytes(response.data);
+    return file;
+  }
+
+  Future<void> _shareTicket() async {
+    setState(() => _sharing = true);
+    try {
+      final file = await _fetchTicketPdf();
+      await Share.shareXFiles([XFile(file.path)], text: 'My trip ticket - ${widget.ref}');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to share: $e')));
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  Future<void> _downloadTicket() async {
+    setState(() => _downloading = true);
+    try {
+      final file = await _fetchTicketPdf();
+      final dir = await getApplicationDocumentsDirectory();
+      final saved = await file.copy('${dir.path}/ticket_${widget.ref}.pdf');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ticket saved to ${saved.path}')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to download: $e')));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
     }
   }
 
@@ -180,7 +220,32 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               Text(b.ref, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
             ]),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // Share & Download buttons
+          if (b.status == 'confirmed')
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _sharing ? null : _shareTicket,
+                  icon: _sharing
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.share),
+                  label: const Text('Share'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _downloading ? null : _downloadTicket,
+                  icon: _downloading
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.download),
+                  label: const Text('Download'),
+                ),
+              ),
+            ]),
+          const SizedBox(height: 16),
 
           // Cancel button
           if (isCancellable)

@@ -23,8 +23,12 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
         onPageStarted: (_) => setState(() => _loading = true),
         onPageFinished: (_) => setState(() => _loading = false),
         onNavigationRequest: (request) {
-          if (request.url.contains('/booking/payment') || request.url.contains('callback')) {
-            context.go('/booking/confirmation?ref=${widget.bookingRef}');
+          if (request.url.contains('/booking/payment') || request.url.contains('callback') || request.url.contains('topup=success')) {
+            if (widget.bookingRef == 'wallet-topup') {
+              context.go('/wallet');
+            } else {
+              context.go('/booking/confirmation?ref=${widget.bookingRef}');
+            }
             return NavigationDecision.prevent;
           }
           return NavigationDecision.navigate;
