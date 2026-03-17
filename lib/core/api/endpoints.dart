@@ -5,6 +5,8 @@ class Endpoints {
   static const String logout = '/auth/logout';
   static const String me = '/auth/me';
   static const String updateProfile = '/auth/me';
+  static const String sendOTP = '/otp/send';
+  static const String verifyOTP = '/otp/verify';
   static const String terminals = '/terminals';
   static const String searchTrips = '/routes/search';
   static const String popularRoutes = '/routes/popular';

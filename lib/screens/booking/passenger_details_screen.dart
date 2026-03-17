@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/providers/booking_provider.dart';
+import 'package:etbp_mobile/widgets/common/phone_input.dart';
 
 class PassengerDetailsScreen extends ConsumerStatefulWidget {
   const PassengerDetailsScreen({super.key});
@@ -150,11 +151,10 @@ class _PassengerDetailsScreenState extends ConsumerState<PassengerDetailsScreen>
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Expanded(child: TextFormField(
-                          controller: _controllers[i]['phone'],
-                          decoration: const InputDecoration(labelText: 'Phone'),
-                          keyboardType: TextInputType.phone,
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        Expanded(child: PhoneInput(
+                          label: 'Phone',
+                          initialValue: _controllers[i]['phone']!.text,
+                          onChanged: (v) => _controllers[i]['phone']!.text = v,
                         )),
                       ]),
                     ],
@@ -177,11 +177,10 @@ class _PassengerDetailsScreenState extends ConsumerState<PassengerDetailsScreen>
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _phoneC,
-                    decoration: const InputDecoration(labelText: 'Phone', prefixIcon: Icon(Icons.phone_outlined, size: 20)),
-                    keyboardType: TextInputType.phone,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  PhoneInput(
+                    label: 'Phone',
+                    initialValue: _phoneC.text,
+                    onChanged: (v) => _phoneC.text = v,
                   ),
                 ]),
               ),
@@ -197,7 +196,7 @@ class _PassengerDetailsScreenState extends ConsumerState<PassengerDetailsScreen>
                   const SizedBox(height: 12),
                   TextFormField(controller: _emergNameC, decoration: const InputDecoration(labelText: 'Contact name')),
                   const SizedBox(height: 12),
-                  TextFormField(controller: _emergPhoneC, decoration: const InputDecoration(labelText: 'Contact phone'), keyboardType: TextInputType.phone),
+                  PhoneInput(label: 'Contact phone', initialValue: _emergPhoneC.text, onChanged: (v) => _emergPhoneC.text = v),
                 ]),
               ),
             ),

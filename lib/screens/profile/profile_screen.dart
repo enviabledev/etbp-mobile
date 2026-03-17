@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
+import 'package:etbp_mobile/widgets/common/phone_input.dart';
+import 'package:etbp_mobile/widgets/common/otp_verification_sheet.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -38,13 +40,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // If phone changed, require OTP verification
+    final user = ref.read(authStateProvider).value;
+    final newPhone = _phoneC.text.trim();
+    if (newPhone.isNotEmpty && newPhone != (user?.phone ?? '')) {
+      final verified = await showOTPVerification(context, ref, newPhone);
+      if (!verified) return;
+    }
+
     setState(() => _saving = true);
     try {
       final authService = ref.read(authServiceProvider);
       await authService.updateProfile({
         'first_name': _firstC.text.trim(),
         'last_name': _lastC.text.trim(),
-        'phone': _phoneC.text.trim(),
+        'phone': newPhone,
         'date_of_birth': _dobC.text.trim().isEmpty ? null : _dobC.text.trim(),
         'gender': _gender.isEmpty ? null : _gender,
         'emergency_contact_name': _emergNameC.text.trim().isEmpty ? null : _emergNameC.text.trim(),
@@ -88,8 +99,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null)),
             ]),
             const SizedBox(height: 12),
-            TextFormField(controller: _phoneC, decoration: const InputDecoration(labelText: 'Phone'), keyboardType: TextInputType.phone,
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null),
+            PhoneInput(
+              label: 'Phone',
+              initialValue: _phoneC.text,
+              onChanged: (v) => _phoneC.text = v,
+            ),
             const SizedBox(height: 12),
             TextFormField(controller: _dobC, decoration: const InputDecoration(labelText: 'Date of Birth (YYYY-MM-DD)'), keyboardType: TextInputType.datetime),
             const SizedBox(height: 12),

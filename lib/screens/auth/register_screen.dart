@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/utils/validators.dart';
+import 'package:etbp_mobile/widgets/common/phone_input.dart';
+import 'package:etbp_mobile/widgets/common/otp_verification_sheet.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -16,8 +18,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _firstNameC = TextEditingController();
   final _lastNameC = TextEditingController();
   final _emailC = TextEditingController();
-  final _phoneC = TextEditingController();
   final _passwordC = TextEditingController();
+  String _phone = '';
   bool _obscure = true;
   String? _error;
 
@@ -25,12 +27,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _error = null);
 
+    // If phone provided, verify via OTP first
+    if (_phone.isNotEmpty) {
+      final verified = await showOTPVerification(context, ref, _phone);
+      if (!verified) return;
+    }
+
     await ref.read(authStateProvider.notifier).register(
       firstName: _firstNameC.text.trim(),
       lastName: _lastNameC.text.trim(),
       email: _emailC.text.trim(),
       password: _passwordC.text,
-      phone: _phoneC.text.trim().isEmpty ? null : _phoneC.text.trim(),
+      phone: _phone.isEmpty ? null : _phone,
     );
 
     final state = ref.read(authStateProvider);
@@ -74,7 +82,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 const SizedBox(height: 16),
                 TextFormField(controller: _emailC, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress, validator: validateEmail),
                 const SizedBox(height: 16),
-                TextFormField(controller: _phoneC, decoration: const InputDecoration(labelText: 'Phone (optional)'), keyboardType: TextInputType.phone),
+                PhoneInput(label: 'Phone (optional)', onChanged: (v) => _phone = v),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordC,
@@ -83,7 +91,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   validator: validatePassword,
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(onPressed: isLoading ? null : _register, child: isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Create Account')),
+                ElevatedButton(onPressed: isLoading ? null : _register, child: isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(_phone.isNotEmpty ? 'Verify & Register' : 'Create Account')),
                 const SizedBox(height: 16),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Text('Already have an account? '),
