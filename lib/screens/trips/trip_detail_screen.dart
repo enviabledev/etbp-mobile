@@ -24,6 +24,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   bool _cancelling = false;
   bool _sharing = false;
   bool _downloading = false;
+  bool _transferring = false;
+  bool _addingLuggage = false;
 
   @override
   void initState() {
@@ -110,6 +112,118 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     } finally {
       if (mounted) setState(() => _cancelling = false);
     }
+  }
+
+  void _showTransferSheet() {
+    final nameC = TextEditingController();
+    final phoneC = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Text('Transfer Ticket', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text('Transfer this booking to another person. This cannot be undone.', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+          const SizedBox(height: 16),
+          TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Recipient full name', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: phoneC, decoration: const InputDecoration(labelText: 'Recipient phone (+234...)', border: OutlineInputBorder()), keyboardType: TextInputType.phone),
+          const SizedBox(height: 20),
+          StatefulBuilder(builder: (ctx2, setSheetState) {
+            return ElevatedButton(
+              onPressed: _transferring ? null : () async {
+                if (nameC.text.trim().isEmpty || phoneC.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name and phone are required')));
+                  return;
+                }
+                setSheetState(() => _transferring = true);
+                try {
+                  final api = ref.read(apiClientProvider);
+                  await api.post(Endpoints.transferBooking(widget.ref), data: {
+                    'recipient_name': nameC.text.trim(),
+                    'recipient_phone': phoneC.text.trim(),
+                  });
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Booking transferred to ${nameC.text.trim()}')));
+                    _load();
+                  }
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error));
+                } finally {
+                  _transferring = false;
+                  if (mounted) setSheetState(() {});
+                }
+              },
+              child: _transferring ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Transfer Booking'),
+            );
+          }),
+        ]),
+      ),
+    );
+  }
+
+  void _showLuggageSheet() {
+    int qty = 1;
+    String method = 'wallet';
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setSheetState) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Add Extra Luggage', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Row(children: [
+              const Text('Bags:', style: TextStyle(fontSize: 15)),
+              const Spacer(),
+              IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: qty > 1 ? () => setSheetState(() => qty--) : null),
+              Text('$qty', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: qty < 5 ? () => setSheetState(() => qty++) : null),
+            ]),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(10)),
+              child: Row(children: [
+                Text('Total: ${formatCurrency(2000.0 * qty)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                const Text('@ ${2000}/bag', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: ChoiceChip(label: const Text('Wallet'), selected: method == 'wallet', onSelected: (_) => setSheetState(() => method = 'wallet'))),
+              const SizedBox(width: 8),
+              Expanded(child: ChoiceChip(label: const Text('Card'), selected: method == 'card', onSelected: (_) => setSheetState(() => method = 'card'))),
+            ]),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _addingLuggage ? null : () async {
+                setSheetState(() => _addingLuggage = true);
+                try {
+                  final api = ref.read(apiClientProvider);
+                  await api.post(Endpoints.addLuggage(widget.ref), data: {'quantity': qty, 'payment_method': method});
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$qty extra bag(s) added!')));
+                    _load();
+                  }
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error));
+                } finally {
+                  _addingLuggage = false;
+                  if (mounted) setSheetState(() {});
+                }
+              },
+              child: _addingLuggage ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Add Luggage'),
+            ),
+          ]),
+        );
+      }),
+    );
   }
 
   @override
@@ -258,6 +372,28 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               ),
             ]),
           const SizedBox(height: 16),
+
+          // Actions: Transfer & Luggage
+          if (b.status == 'confirmed' && b.trip != null) ...[
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showTransferSheet,
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('Transfer'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showLuggageSheet,
+                  icon: const Icon(Icons.luggage, size: 18),
+                  label: const Text('Add Luggage'),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+          ],
 
           // Cancel button
           if (isCancellable)

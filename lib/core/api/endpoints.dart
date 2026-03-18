@@ -25,6 +25,11 @@ class Endpoints {
   static const String walletTransactions = '/payments/wallet/transactions';
   static const String walletTopup = '/payments/wallet/topup';
   static const String support = '/support';
+  static String rescheduleOptions(String ref) => '/bookings/$ref/reschedule-options';
+  static String rescheduleBooking(String ref) => '/bookings/$ref/reschedule';
+  static String transferBooking(String ref) => '/bookings/$ref/transfer';
+  static String addLuggage(String ref) => '/bookings/$ref/add-luggage';
+  static String bookingAddons(String ref) => '/bookings/$ref/addons';
   static const String registerDevice = '/notifications/register-device';
   static const String unregisterDevice = '/notifications/unregister-device';
 }
