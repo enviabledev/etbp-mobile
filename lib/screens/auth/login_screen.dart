@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
+import 'package:etbp_mobile/core/auth/social_auth_service.dart';
+import 'package:etbp_mobile/core/api/endpoints.dart';
 import 'package:etbp_mobile/core/utils/validators.dart';
 import 'package:etbp_mobile/providers/booking_provider.dart';
 
@@ -17,7 +19,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _googleSigningIn = false;
   String? _error;
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _googleSigningIn = true);
+    try {
+      final socialAuth = SocialAuthService();
+      final idToken = await socialAuth.googleSignIn();
+      if (idToken == null) {
+        setState(() => _googleSigningIn = false);
+        return; // user cancelled
+      }
+      final api = ref.read(apiClientProvider);
+      final res = await api.post(Endpoints.googleAuth, data: {'id_token': idToken});
+      final tokenStorage = ref.read(tokenStorageProvider);
+      await tokenStorage.saveTokens(res.data['access_token'], res.data['refresh_token']);
+      final authNotifier = ref.read(authStateProvider.notifier);
+      await authNotifier.checkAuth();
+      if (mounted) context.go('/');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in failed: $e'), backgroundColor: AppTheme.error));
+    } finally {
+      if (mounted) setState(() => _googleSigningIn = false);
+    }
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -88,6 +114,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ElevatedButton(
                   onPressed: isLoading ? null : _login,
                   child: isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Sign In'),
+                ),
+                const SizedBox(height: 24),
+                Row(children: [
+                  const Expanded(child: Divider()),
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('or', style: TextStyle(color: Colors.grey[500], fontSize: 13))),
+                  const Expanded(child: Divider()),
+                ]),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: _googleSigningIn ? null : _handleGoogleSignIn,
+                  icon: const Icon(Icons.g_mobiledata, size: 24),
+                  label: Text(_googleSigningIn ? 'Signing in...' : 'Continue with Google'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
                 ),
                 const SizedBox(height: 16),
                 Row(

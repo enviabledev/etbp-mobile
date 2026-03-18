@@ -35,4 +35,9 @@ class Endpoints {
   static const String validatePromo = '/promo/validate';
   static String submitReview(String ref) => '/reviews/booking/$ref';
   static String getReview(String ref) => '/reviews/booking/$ref';
+  static const String googleAuth = '/auth/google';
+  static const String appleAuth = '/auth/apple';
+  static const String biometricCheck = '/auth/biometric-check';
+  static const String linkGoogle = '/auth/link-google';
+  static const String linkApple = '/auth/link-apple';
 }
