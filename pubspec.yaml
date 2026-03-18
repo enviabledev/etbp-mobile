@@ -40,6 +40,10 @@ dependencies:
   google_sign_in: ^6.2.2
   sign_in_with_apple: ^6.1.4
   local_auth: ^2.3.0
+  # Calendar & Maps
+  add_2_calendar: ^3.0.1
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

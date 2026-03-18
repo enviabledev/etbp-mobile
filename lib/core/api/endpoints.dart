@@ -40,4 +40,6 @@ class Endpoints {
   static const String biometricCheck = '/auth/biometric-check';
   static const String linkGoogle = '/auth/link-google';
   static const String linkApple = '/auth/link-apple';
+  static String calendarData(String ref) => '/bookings/$ref/calendar-data';
+  static String routeMap(String routeId) => '/routes/$routeId/map';
 }

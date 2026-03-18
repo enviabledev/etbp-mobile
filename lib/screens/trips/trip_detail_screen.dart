@@ -10,6 +10,7 @@ import 'package:etbp_mobile/core/api/endpoints.dart';
 import 'package:etbp_mobile/core/utils/formatters.dart';
 import 'package:etbp_mobile/models/booking.dart';
 import 'package:etbp_mobile/widgets/common/countdown_timer.dart';
+import 'package:etbp_mobile/widgets/booking/add_to_calendar_button.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
   final String ref;
@@ -28,6 +29,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   bool _addingLuggage = false;
   Map<String, dynamic>? _review;
   bool _submittingReview = false;
+  Map<String, dynamic>? _calendarData;
 
   @override
   void initState() {
@@ -47,8 +49,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       } catch (_) {
         _review = null;
       }
+      final booking = Booking.fromJson(res.data);
+      // Load calendar data
+      if (booking.status == 'confirmed') {
+        try {
+          final calRes = await api.get(Endpoints.calendarData(widget.ref));
+          _calendarData = calRes.data;
+        } catch (_) {}
+      }
       setState(() {
-        _booking = Booking.fromJson(res.data);
+        _booking = booking;
         _loading = false;
       });
     } catch (_) {
@@ -464,6 +474,18 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 ),
               ),
             ]),
+          // Add to Calendar
+          if (b.status == 'confirmed' && _calendarData != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: AddToCalendarButton(
+                title: _calendarData!['title'] ?? 'Bus Trip',
+                description: _calendarData!['description'] ?? '',
+                location: _calendarData!['location'] ?? '',
+                startTime: DateTime.parse(_calendarData!['start_time']),
+                endTime: DateTime.parse(_calendarData!['end_time']),
+              ),
+            ),
           const SizedBox(height: 16),
 
           // Review section
