@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
+import 'dart:async';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:etbp_mobile/core/api/endpoints.dart';
 import 'package:etbp_mobile/core/utils/formatters.dart';
 import 'package:etbp_mobile/models/wallet.dart';
@@ -60,6 +62,15 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     );
   }
 
+  void _showPayAtCounter() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _PayAtCounterSheet(api: ref.read(apiClientProvider)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -90,17 +101,31 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     Text(formatCurrency(_wallet?.balance ?? 0),
                         style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _showTopUp,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Top Up'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        minimumSize: const Size(0, 40),
+                    Row(children: [
+                      ElevatedButton.icon(
+                        onPressed: _showTopUp,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Top Up'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          minimumSize: const Size(0, 40),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: _showPayAtCounter,
+                        icon: const Icon(Icons.qr_code, size: 18),
+                        label: const Text('Pay at Counter'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          minimumSize: const Size(0, 40),
+                        ),
+                      ),
+                    ]),
                   ],
                 ),
               ),
@@ -315,6 +340,85 @@ class _TopUpSheetState extends State<_TopUpSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+class _PayAtCounterSheet extends StatefulWidget {
+  final dynamic api;
+  const _PayAtCounterSheet({required this.api});
+  @override
+  State<_PayAtCounterSheet> createState() => _PayAtCounterSheetState();
+}
+
+class _PayAtCounterSheetState extends State<_PayAtCounterSheet> {
+  String? _qrData;
+  int _secondsLeft = 0;
+  bool _loading = false;
+  Timer? _timer;
+
+  @override
+  void initState() { super.initState(); _generate(); }
+
+  Future<void> _generate() async {
+    setState(() => _loading = true);
+    try {
+      final res = await widget.api.post('/payments/wallet/payment-qr', data: {});
+      setState(() {
+        _qrData = res.data['qr_data'];
+        _secondsLeft = res.data['expires_in'] ?? 300;
+        _loading = false;
+      });
+      _startTimer();
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_secondsLeft <= 0) { _timer?.cancel(); _generate(); return; }
+      setState(() => _secondsLeft--);
+    });
+  }
+
+  @override
+  void dispose() { _timer?.cancel(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = (_secondsLeft ~/ 60).toString().padLeft(2, '0');
+    final s = (_secondsLeft % 60).toString().padLeft(2, '0');
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 16),
+        const Text('Pay at Counter', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        const Text('Show this QR to the agent', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+        const SizedBox(height: 20),
+
+        if (_loading)
+          const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+        else if (_qrData != null) ...[
+          QrImageView(data: _qrData!, size: 200, backgroundColor: Colors.white),
+          const SizedBox(height: 16),
+          Text('$m:$s', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+          const SizedBox(height: 8),
+          const Text('Auto-refreshes when expired', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+        ],
+
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: AppTheme.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+          child: const Text('Do not share this code. It authorizes a payment from your wallet.', style: TextStyle(fontSize: 11, color: AppTheme.warning), textAlign: TextAlign.center),
+        ),
+      ]),
     );
   }
 }
