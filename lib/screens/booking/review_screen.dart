@@ -238,6 +238,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 _paymentOption('wallet', 'Pay from Wallet', Icons.account_balance_wallet,
                     _wallet != null ? '(${formatCurrency(_wallet!.balance)})' : null),
                 _paymentOption('terminal', 'Pay at Terminal', Icons.store, null),
+                _paymentOption('corporate', 'Bill to Company', Icons.business, null),
               ]))),
               const SizedBox(height: 12),
 
