@@ -9,6 +9,7 @@ import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/api/endpoints.dart';
 import 'package:etbp_mobile/core/utils/formatters.dart';
 import 'package:etbp_mobile/models/booking.dart';
+import 'package:etbp_mobile/widgets/common/countdown_timer.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
   final String ref;
@@ -133,6 +134,17 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Payment deadline countdown
+          if (b.status == 'pending' && b.paymentDeadline != null && b.paymentMethodHint == 'pay_at_terminal')
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: PaymentDeadlineBanner(
+                deadline: DateTime.parse(b.paymentDeadline!),
+                terminalName: b.trip?.route?.originTerminal?.name,
+                onExpired: _load,
+              ),
+            ),
+
           // Status badge
           Center(
             child: Container(

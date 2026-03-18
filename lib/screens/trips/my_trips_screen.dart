@@ -6,6 +6,7 @@ import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/api/endpoints.dart';
 import 'package:etbp_mobile/core/utils/formatters.dart';
 import 'package:etbp_mobile/models/booking.dart';
+import 'package:etbp_mobile/widgets/common/countdown_timer.dart';
 
 class MyTripsScreen extends ConsumerStatefulWidget {
   const MyTripsScreen({super.key});
@@ -71,10 +72,12 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> with SingleTicker
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Expanded(child: Text(b.trip?.route?.name ?? '${b.trip?.route?.originTerminal?.city ?? '—'} → ${b.trip?.route?.destinationTerminal?.city ?? '—'}', style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  const Spacer(),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: b.status == 'confirmed' ? AppTheme.success.withValues(alpha: 0.1) : Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                    child: Text(b.status, style: TextStyle(fontSize: 11, color: b.status == 'confirmed' ? AppTheme.success : AppTheme.warning)),
-                  ),
+                  if (b.status == 'pending' && b.paymentDeadline != null && b.paymentMethodHint == 'pay_at_terminal')
+                    PaymentDeadlineBadge(deadline: DateTime.parse(b.paymentDeadline!))
+                  else
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: b.status == 'confirmed' ? AppTheme.success.withValues(alpha: 0.1) : Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Text(b.status, style: TextStyle(fontSize: 11, color: b.status == 'confirmed' ? AppTheme.success : AppTheme.warning)),
+                    ),
                 ]),
                 const SizedBox(height: 8),
                 Row(children: [

@@ -17,6 +17,8 @@ class Booking {
   final String? promoCode;
   final double promoDiscount;
   final String? paymentMethod;
+  final String? paymentMethodHint;
+  final String? paymentDeadline;
   final String? cancellationReason;
   final String? cancelledAt;
 
@@ -39,6 +41,8 @@ class Booking {
     this.promoCode,
     this.promoDiscount = 0,
     this.paymentMethod,
+    this.paymentMethodHint,
+    this.paymentDeadline,
     this.cancellationReason,
     this.cancelledAt,
   });
@@ -64,6 +68,8 @@ class Booking {
     promoCode: json['promo_code'],
     promoDiscount: (json['promo_discount'] ?? 0).toDouble(),
     paymentMethod: json['payment_method'],
+    paymentMethodHint: json['payment_method_hint'],
+    paymentDeadline: json['payment_deadline'],
     cancellationReason: json['cancellation_reason'],
     cancelledAt: json['cancelled_at'],
   );
