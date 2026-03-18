@@ -15,19 +15,24 @@ class PushNotificationService {
   PushNotificationService(this._ref);
 
   Future<void> initialize() async {
+    debugPrint('Push: initializing...');
     final messaging = FirebaseMessaging.instance;
 
     // Request permission
+    debugPrint('Push: requesting permission...');
     final settings = await messaging.requestPermission(
       alert: true, badge: true, sound: true,
     );
-    debugPrint('Push permission: ${settings.authorizationStatus}');
+    debugPrint('Push: permission = ${settings.authorizationStatus}');
 
     // Get token and register
+    debugPrint('Push: getting token...');
     final token = await messaging.getToken();
     if (token != null) {
-      debugPrint('FCM token: ${token.substring(0, 20)}...');
+      debugPrint('Push: token = ${token.substring(0, 30)}...');
       await _registerToken(token);
+    } else {
+      debugPrint('Push: token is null');
     }
 
     // Listen for token refresh
@@ -46,15 +51,16 @@ class PushNotificationService {
 
   Future<void> _registerToken(String token) async {
     try {
+      debugPrint('Push: registering with backend...');
       final api = _ref.read(apiClientProvider);
       await api.post(Endpoints.registerDevice, data: {
         'token': token,
         'device_type': Platform.isIOS ? 'ios' : 'android',
         'app_type': 'customer',
       });
-      debugPrint('FCM token registered');
+      debugPrint('Push: registered successfully');
     } catch (e) {
-      debugPrint('FCM register failed: $e');
+      debugPrint('Push: registration failed: $e');
     }
   }
 
