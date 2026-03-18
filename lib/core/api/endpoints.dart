@@ -32,4 +32,5 @@ class Endpoints {
   static String bookingAddons(String ref) => '/bookings/$ref/addons';
   static const String registerDevice = '/notifications/register-device';
   static const String unregisterDevice = '/notifications/unregister-device';
+  static const String validatePromo = '/promo/validate';
 }

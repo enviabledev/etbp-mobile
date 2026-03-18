@@ -17,6 +17,11 @@ class ReviewScreen extends ConsumerStatefulWidget {
 class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   bool _processing = false;
   Wallet? _wallet;
+  String _promoCode = '';
+  String? _promoMessage;
+  bool _promoValid = false;
+  double _promoDiscount = 0;
+  bool _validatingPromo = false;
 
   @override
   void initState() {
@@ -30,6 +35,55 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       final res = await api.get(Endpoints.walletBalance);
       if (mounted) setState(() => _wallet = Wallet.fromJson(res.data));
     } catch (_) {}
+  }
+
+  Future<void> _validatePromo() async {
+    if (_promoCode.trim().isEmpty) return;
+    setState(() => _validatingPromo = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      final booking = ref.read(bookingProvider);
+      final res = await api.post(Endpoints.validatePromo, data: {
+        'code': _promoCode.trim().toUpperCase(),
+        'trip_id': booking.trip?.id,
+        'amount': booking.totalAmount,
+      });
+      final data = res.data;
+      if (data['valid'] == true) {
+        setState(() {
+          _promoValid = true;
+          _promoDiscount = (data['discount_amount'] ?? 0).toDouble();
+          _promoMessage = data['message'] ?? 'Promo applied!';
+        });
+      } else {
+        setState(() {
+          _promoValid = false;
+          _promoDiscount = 0;
+          _promoMessage = _reasonToMessage(data['reason'] ?? 'invalid');
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _promoValid = false;
+        _promoDiscount = 0;
+        _promoMessage = 'Failed to validate promo code';
+      });
+    } finally {
+      setState(() => _validatingPromo = false);
+    }
+  }
+
+  String _reasonToMessage(String reason) {
+    switch (reason) {
+      case 'not_found': return 'Promo code not found';
+      case 'expired': return 'This promo code has expired';
+      case 'usage_limit_reached': return 'This promo code is no longer available';
+      case 'already_used': return 'You have already used this promo code';
+      case 'min_amount_not_met': return 'Minimum booking amount not met';
+      case 'not_applicable_route': return 'Not valid for this route';
+      case 'inactive': return 'This promo code is inactive';
+      default: return 'Invalid promo code';
+    }
   }
 
   Future<void> _confirm() async {
@@ -133,6 +187,49 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               ]))),
               const SizedBox(height: 12),
 
+              // Promo Code
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Promo Code', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    if (_promoValid) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: AppTheme.success.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                        child: Row(children: [
+                          const Icon(Icons.check_circle, color: AppTheme.success, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(_promoMessage ?? '', style: const TextStyle(fontSize: 13, color: AppTheme.success, fontWeight: FontWeight.w600)),
+                            Text('You save ${formatCurrency(_promoDiscount)}', style: const TextStyle(fontSize: 12, color: AppTheme.success)),
+                          ])),
+                          IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() { _promoValid = false; _promoDiscount = 0; _promoCode = ''; _promoMessage = null; })),
+                        ]),
+                      ),
+                    ] else ...[
+                      Row(children: [
+                        Expanded(child: TextField(
+                          onChanged: (v) => _promoCode = v.toUpperCase(),
+                          decoration: const InputDecoration(hintText: 'Enter promo code', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10), border: OutlineInputBorder()),
+                          textCapitalization: TextCapitalization.characters,
+                        )),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _validatingPromo ? null : _validatePromo,
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
+                          child: _validatingPromo ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Apply'),
+                        ),
+                      ]),
+                      if (_promoMessage != null && !_promoValid)
+                        Padding(padding: const EdgeInsets.only(top: 8), child: Text(_promoMessage!, style: const TextStyle(fontSize: 12, color: AppTheme.error))),
+                    ],
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 12),
+
               // Payment method
               Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('Payment Method', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -145,10 +242,31 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               const SizedBox(height: 12),
 
               // Total
-              Card(child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-                const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                Text(formatCurrency(total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+              Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+                Row(children: [
+                  const Text('Subtotal', style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
+                  const Spacer(),
+                  Text(formatCurrency(total), style: TextStyle(fontSize: 14, color: _promoValid ? AppTheme.textSecondary : AppTheme.primary, decoration: _promoValid ? TextDecoration.lineThrough : null)),
+                ]),
+                if (_promoValid) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Text('Discount', style: TextStyle(fontSize: 14, color: AppTheme.success)),
+                    const Spacer(),
+                    Text('- ${formatCurrency(_promoDiscount)}', style: const TextStyle(fontSize: 14, color: AppTheme.success)),
+                  ]),
+                  const Divider(height: 16),
+                  Row(children: [
+                    const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    Text(formatCurrency(total - _promoDiscount), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                  ]),
+                ] else
+                  Row(children: [
+                    const Text('Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    Text(formatCurrency(total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                  ]),
               ]))),
               const SizedBox(height: 16),
 
@@ -157,7 +275,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 child: _processing
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : Text(booking.paymentMethod == 'card'
-                        ? 'Pay ${formatCurrency(total)}'
+                        ? 'Pay ${formatCurrency(_promoValid ? total - _promoDiscount : total)}'
                         : booking.paymentMethod == 'wallet'
                             ? 'Pay from Wallet'
                             : 'Confirm Booking'),
