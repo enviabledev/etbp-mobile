@@ -33,4 +33,6 @@ class Endpoints {
   static const String registerDevice = '/notifications/register-device';
   static const String unregisterDevice = '/notifications/unregister-device';
   static const String validatePromo = '/promo/validate';
+  static String submitReview(String ref) => '/reviews/booking/$ref';
+  static String getReview(String ref) => '/reviews/booking/$ref';
 }

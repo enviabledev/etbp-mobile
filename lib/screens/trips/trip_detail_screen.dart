@@ -26,6 +26,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   bool _downloading = false;
   bool _transferring = false;
   bool _addingLuggage = false;
+  Map<String, dynamic>? _review;
+  bool _submittingReview = false;
 
   @override
   void initState() {
@@ -38,6 +40,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     try {
       final api = ref.read(apiClientProvider);
       final res = await api.get(Endpoints.bookingDetail(widget.ref));
+      // Try to load existing review
+      try {
+        final reviewRes = await api.get(Endpoints.getReview(widget.ref));
+        _review = reviewRes.data;
+      } catch (_) {
+        _review = null;
+      }
       setState(() {
         _booking = Booking.fromJson(res.data);
         _loading = false;
@@ -162,6 +171,90 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           }),
         ]),
       ),
+    );
+  }
+
+  void _showReviewSheet() {
+    int overall = 0;
+    int driver = 0;
+    int bus = 0;
+    int punctuality = 0;
+    int comfort = 0;
+    String comment = '';
+    bool anonymous = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(builder: (ctx2, setSheetState) {
+        Widget starRow(String label, int value, Function(int) onTap, {double size = 28}) {
+          return Row(children: [
+            SizedBox(width: 90, child: Text(label, style: const TextStyle(fontSize: 13))),
+            ...List.generate(5, (i) => GestureDetector(
+              onTap: () => setSheetState(() => onTap(i + 1)),
+              child: Icon(i < value ? Icons.star : Icons.star_border, color: i < value ? Colors.amber : Colors.grey[300], size: size),
+            )),
+          ]);
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Rate Your Trip', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            starRow('Overall *', overall, (v) => overall = v, size: 36),
+            const SizedBox(height: 12),
+            starRow('Driver', driver, (v) => driver = v),
+            const SizedBox(height: 8),
+            starRow('Bus', bus, (v) => bus = v),
+            const SizedBox(height: 8),
+            starRow('Punctuality', punctuality, (v) => punctuality = v),
+            const SizedBox(height: 8),
+            starRow('Comfort', comfort, (v) => comfort = v),
+            const SizedBox(height: 16),
+            TextField(
+              onChanged: (v) => comment = v,
+              maxLength: 500,
+              maxLines: 3,
+              decoration: const InputDecoration(hintText: 'Tell us about your experience (optional)', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Checkbox(value: anonymous, onChanged: (v) => setSheetState(() => anonymous = v ?? false)),
+              const Text('Submit anonymously', style: TextStyle(fontSize: 13)),
+            ]),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: overall == 0 || _submittingReview ? null : () async {
+                setSheetState(() => _submittingReview = true);
+                try {
+                  final api = ref.read(apiClientProvider);
+                  await api.post(Endpoints.submitReview(widget.ref), data: {
+                    'overall_rating': overall,
+                    if (driver > 0) 'driver_rating': driver,
+                    if (bus > 0) 'bus_condition_rating': bus,
+                    if (punctuality > 0) 'punctuality_rating': punctuality,
+                    if (comfort > 0) 'comfort_rating': comfort,
+                    if (comment.trim().isNotEmpty) 'comment': comment.trim(),
+                    'is_anonymous': anonymous,
+                  });
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted!')));
+                    _load();
+                  }
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error));
+                } finally {
+                  _submittingReview = false;
+                  if (mounted) setSheetState(() {});
+                }
+              },
+              child: _submittingReview ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Submit Review'),
+            ),
+          ])),
+        );
+      }),
     );
   }
 
@@ -372,6 +465,62 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               ),
             ]),
           const SizedBox(height: 16),
+
+          // Review section
+          if ((b.status == 'completed' || b.status == 'checked_in') && _review == null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                color: Colors.amber.withValues(alpha: 0.08),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Rate Your Trip', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF92400E))),
+                    const SizedBox(height: 4),
+                    const Text('Your feedback helps us improve.', style: TextStyle(fontSize: 13, color: Color(0xFFB45309))),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: _showReviewSheet,
+                      icon: const Icon(Icons.star, size: 18),
+                      label: const Text('Write a Review'),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+
+          if (_review != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Your Review', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Row(children: List.generate(5, (i) => Icon(
+                      i < (_review!['overall_rating'] ?? 0) ? Icons.star : Icons.star_border,
+                      color: Colors.amber, size: 22,
+                    ))),
+                    if (_review!['comment'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(_review!['comment'], style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                    ],
+                    if (_review!['admin_response'] != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text('Response:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                          Text(_review!['admin_response'], style: const TextStyle(fontSize: 13)),
+                        ]),
+                      ),
+                    ],
+                  ]),
+                ),
+              ),
+            ),
 
           // Actions: Transfer & Luggage
           if (b.status == 'confirmed' && b.trip != null) ...[
