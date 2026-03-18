@@ -156,7 +156,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   const Text('Trip', style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Text(
-                    '${b.trip!.route?.originTerminal?.city ?? '—'} → ${b.trip!.route?.destinationTerminal?.city ?? '—'}',
+                    b.trip!.route?.name ?? '${b.trip!.route?.originTerminal?.city ?? '—'} → ${b.trip!.route?.destinationTerminal?.city ?? '—'}',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),

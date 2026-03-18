@@ -172,7 +172,7 @@ class _SeatSelectionScreenState extends ConsumerState<SeatSelectionScreen> {
               child: Row(children: [
                 Expanded(
                   child: Text(
-                    '${_trip!.route.originTerminal.city} → ${_trip!.route.destinationTerminal.city}',
+                    _trip!.route.name.isNotEmpty ? _trip!.route.name : '${_trip!.route.originTerminal.city} → ${_trip!.route.destinationTerminal.city}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
