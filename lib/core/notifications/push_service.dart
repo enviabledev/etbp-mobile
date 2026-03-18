@@ -24,6 +24,10 @@ class PushNotificationService {
   final Ref _ref;
   PushNotificationService(this._ref);
 
+  /// Callback for screens to register for data refresh on push notifications.
+  /// Usage: PushNotificationService.onDataRefresh = (type, data) { _load(); };
+  static void Function(String type, Map<String, dynamic> data)? onDataRefresh;
+
   Future<void> initialize() async {
     debugPrint('Push: initializing...');
     final messaging = FirebaseMessaging.instance;
@@ -60,6 +64,11 @@ class PushNotificationService {
           payload: message.data['type'],
         );
       }
+      // Trigger data refresh for listening screens
+      PushNotificationService.onDataRefresh?.call(
+        message.data['type'] ?? '',
+        message.data.cast<String, dynamic>(),
+      );
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
