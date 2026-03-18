@@ -25,4 +25,6 @@ class Endpoints {
   static const String walletTransactions = '/payments/wallet/transactions';
   static const String walletTopup = '/payments/wallet/topup';
   static const String support = '/support';
+  static const String registerDevice = '/notifications/register-device';
+  static const String unregisterDevice = '/notifications/unregister-device';
 }
