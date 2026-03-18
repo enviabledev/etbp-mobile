@@ -41,20 +41,18 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     try {
       final api = ref.read(apiClientProvider);
 
-      // 1. Create booking
-      String? bookingRef = booking.bookingReference;
-      if (bookingRef == null) {
-        final bookingRes = await api.post(Endpoints.bookings, data: {
-          'trip_id': booking.trip!.id,
-          'passengers': booking.passengers.map((p) => p.toJson()).toList(),
-          'contact_email': booking.contactEmail,
-          'contact_phone': booking.contactPhone,
-          'emergency_contact_name': booking.emergencyContactName,
-          'emergency_contact_phone': booking.emergencyContactPhone,
-        });
-        bookingRef = bookingRes.data['reference'] ?? bookingRes.data['booking_reference'] ?? '';
-        notifier.setBookingReference(bookingRef!);
-      }
+      // 1. Create booking (always fresh — never reuse stale references)
+      final bookingRes = await api.post(Endpoints.bookings, data: {
+        'trip_id': booking.trip!.id,
+        'passengers': booking.passengers.map((p) => p.toJson()).toList(),
+        'contact_email': booking.contactEmail,
+        'contact_phone': booking.contactPhone,
+        'emergency_contact_name': booking.emergencyContactName,
+        'emergency_contact_phone': booking.emergencyContactPhone,
+        'payment_method': booking.paymentMethod,
+      });
+      final bookingRef = bookingRes.data['reference'] ?? bookingRes.data['booking_reference'] ?? '';
+      notifier.setBookingReference(bookingRef);
 
       // 2. Process payment
       if (booking.paymentMethod == 'card') {
