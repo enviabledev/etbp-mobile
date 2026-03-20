@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/auth/social_auth_service.dart';
+import 'package:etbp_mobile/core/auth/biometric_service.dart';
 import 'package:etbp_mobile/core/api/endpoints.dart';
 import 'package:etbp_mobile/core/utils/validators.dart';
 import 'package:etbp_mobile/providers/booking_provider.dart';
@@ -20,7 +21,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _googleSigningIn = false;
+  bool _biometricAvailable = false;
+  bool _biometricAuthenticating = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    final bio = BiometricService();
+    final available = await bio.isAvailable();
+    final tokenStorage = ref.read(tokenStorageProvider);
+    final hasToken = await tokenStorage.hasTokens();
+    if (mounted) setState(() => _biometricAvailable = available && hasToken);
+  }
+
+  Future<void> _biometricLogin() async {
+    setState(() => _biometricAuthenticating = true);
+    try {
+      final bio = BiometricService();
+      final success = await bio.authenticate();
+      if (!success) { setState(() => _biometricAuthenticating = false); return; }
+      // Use stored refresh token to restore session
+      final authNotifier = ref.read(authStateProvider.notifier);
+      await authNotifier.checkAuth();
+      final state = ref.read(authStateProvider);
+      if (state.hasValue && state.value != null && mounted) {
+        context.go('/home');
+      } else {
+        setState(() { _biometricAuthenticating = false; _error = 'Session expired. Please sign in with email.'; });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _biometricAuthenticating = false; _error = 'Biometric authentication failed'; });
+    }
+  }
 
   Future<void> _handleGoogleSignIn() async {
     setState(() => _googleSigningIn = true);
@@ -128,6 +165,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: Text(_googleSigningIn ? 'Signing in...' : 'Continue with Google'),
                   style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
                 ),
+                if (_biometricAvailable) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _biometricAuthenticating ? null : _biometricLogin,
+                    icon: const Icon(Icons.fingerprint, size: 24),
+                    label: Text(_biometricAuthenticating ? 'Authenticating...' : 'Sign in with Biometrics'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 48)),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
