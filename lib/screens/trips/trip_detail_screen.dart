@@ -50,12 +50,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         _review = null;
       }
       final booking = Booking.fromJson(res.data);
-      // Load calendar data
-      if (booking.status == 'confirmed') {
+      // Load calendar data for confirmed/checked_in bookings with future trips
+      if (booking.status == 'confirmed' || booking.status == 'checked_in') {
         try {
           final calRes = await api.get(Endpoints.calendarData(widget.ref));
           _calendarData = calRes.data;
-        } catch (_) {}
+          debugPrint('Calendar data loaded: ${_calendarData?['title']}');
+        } catch (e) {
+          debugPrint('Calendar data load failed: $e');
+          _calendarData = null;
+        }
       }
       setState(() {
         _booking = booking;
@@ -475,15 +479,15 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               ),
             ]),
           // Add to Calendar
-          if (b.status == 'confirmed' && _calendarData != null)
+          if ((b.status == 'confirmed' || b.status == 'checked_in') && _calendarData != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: AddToCalendarButton(
                 title: _calendarData!['title'] ?? 'Bus Trip',
                 description: _calendarData!['description'] ?? '',
                 location: _calendarData!['location'] ?? '',
-                startTime: DateTime.parse(_calendarData!['start_time']),
-                endTime: DateTime.parse(_calendarData!['end_time']),
+                startTime: DateTime.tryParse(_calendarData!['start_time'] ?? '') ?? DateTime.now(),
+                endTime: DateTime.tryParse(_calendarData!['end_time'] ?? '') ?? DateTime.now().add(const Duration(hours: 8)),
               ),
             ),
           const SizedBox(height: 16),
