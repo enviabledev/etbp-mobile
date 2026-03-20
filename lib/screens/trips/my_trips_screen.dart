@@ -75,9 +75,15 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> with SingleTicker
                   if (b.status == 'pending' && b.paymentDeadline != null && b.paymentMethodHint == 'pay_at_terminal')
                     PaymentDeadlineBadge(deadline: DateTime.parse(b.paymentDeadline!))
                   else
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: b.status == 'confirmed' ? AppTheme.success.withValues(alpha: 0.1) : Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                      child: Text(b.status, style: TextStyle(fontSize: 11, color: b.status == 'confirmed' ? AppTheme.success : AppTheme.warning)),
-                    ),
+                    Builder(builder: (_) {
+                      final isGreen = ['confirmed', 'completed', 'checked_in'].contains(b.status);
+                      final isRed = ['cancelled', 'expired'].contains(b.status);
+                      final color = isGreen ? AppTheme.success : isRed ? AppTheme.error : AppTheme.warning;
+                      final label = b.status == 'checked_in' ? 'Checked In' : b.status == 'no_show' ? 'No Show' : b.status.replaceAll('_', ' ');
+                      return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                        child: Text(label, style: TextStyle(fontSize: 11, color: color)),
+                      );
+                    }),
                 ]),
                 const SizedBox(height: 8),
                 Row(children: [

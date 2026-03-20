@@ -344,11 +344,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
     final b = _booking!;
     final isCancellable = b.status == 'confirmed' || b.status == 'pending';
-    final statusColor = b.status == 'confirmed'
+    final statusColor = (b.status == 'confirmed' || b.status == 'completed' || b.status == 'checked_in')
         ? AppTheme.success
-        : b.status == 'cancelled'
+        : (b.status == 'cancelled' || b.status == 'expired')
             ? AppTheme.error
-            : AppTheme.warning;
+            : AppTheme.warning; // pending, no_show, etc.
 
     return Scaffold(
       appBar: AppBar(title: Text('Booking ${b.ref}')),
