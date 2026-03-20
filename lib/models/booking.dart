@@ -21,6 +21,7 @@ class Booking {
   final String? paymentDeadline;
   final String? cancellationReason;
   final String? cancelledAt;
+  final int extraLuggageCount;
 
   Booking({
     required this.id,
@@ -45,6 +46,7 @@ class Booking {
     this.paymentDeadline,
     this.cancellationReason,
     this.cancelledAt,
+    this.extraLuggageCount = 0,
   });
 
   String get ref => bookingReference ?? reference;
@@ -72,6 +74,7 @@ class Booking {
     paymentDeadline: json['payment_deadline'],
     cancellationReason: json['cancellation_reason'],
     cancelledAt: json['cancelled_at'],
+    extraLuggageCount: json['extra_luggage_count'] ?? 0,
   );
 }
 

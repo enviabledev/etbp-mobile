@@ -90,6 +90,14 @@ class _MyTripsScreenState extends ConsumerState<MyTripsScreen> with SingleTicker
                   Text(b.trip != null ? formatDate(b.trip!.departureDate) : '—', style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
                   const SizedBox(width: 16),
                   Text(formatCurrency(b.totalAmount), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (b.extraLuggageCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                      child: Text('🧳 ×${b.extraLuggageCount}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                    ),
+                  ],
                 ]),
               ]),
             ),
