@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pinput/pinput.dart';
 import 'package:etbp_mobile/config/theme.dart';
 import 'package:etbp_mobile/core/auth/auth_provider.dart';
 import 'package:etbp_mobile/core/api/endpoints.dart';
@@ -34,9 +34,7 @@ class _OTPSheet extends StatefulWidget {
 }
 
 class _OTPSheetState extends State<_OTPSheet> {
-  final List<TextEditingController> _controllers =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final TextEditingController _otpController = TextEditingController();
 
   String _error = '';
   bool _sending = false;
@@ -53,12 +51,7 @@ class _OTPSheetState extends State<_OTPSheet> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final f in _focusNodes) {
-      f.dispose();
-    }
+    _otpController.dispose();
     super.dispose();
   }
 
@@ -94,8 +87,7 @@ class _OTPSheetState extends State<_OTPSheet> {
     });
   }
 
-  Future<void> _verify() async {
-    final pin = _controllers.map((c) => c.text).join();
+  Future<void> _verify(String pin) async {
     if (pin.length != 6) {
       setState(() => _error = 'Please enter all 6 digits');
       return;
@@ -117,29 +109,32 @@ class _OTPSheetState extends State<_OTPSheet> {
         _error = 'Invalid OTP. Please try again.';
         _verifying = false;
       });
-      _clearInputs();
-    }
-  }
-
-  void _clearInputs() {
-    for (final c in _controllers) {
-      c.clear();
-    }
-    _focusNodes[0].requestFocus();
-  }
-
-  void _onDigitChanged(int index, String value) {
-    if (value.length == 1 && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
-    // Auto-verify when all 6 digits entered
-    if (_controllers.every((c) => c.text.length == 1)) {
-      _verify();
+      _otpController.clear();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final defaultPinTheme = PinTheme(
+      width: 48,
+      height: 48,
+      textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+
+    final focusedPinTheme = PinTheme(
+      width: 48,
+      height: 48,
+      textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppTheme.primary, width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+
     return Padding(
       padding: EdgeInsets.fromLTRB(
           20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
@@ -172,39 +167,14 @@ class _OTPSheetState extends State<_OTPSheet> {
           ),
           const SizedBox(height: 24),
 
-          // OTP inputs
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(6, (i) {
-              return Container(
-                width: 44,
-                height: 52,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: TextField(
-                  controller: _controllers[i],
-                  focusNode: _focusNodes[i],
-                  textAlign: TextAlign.center,
-                  keyboardType: TextInputType.number,
-                  maxLength: 1,
-                  enabled: !_verifying,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: InputDecoration(
-                    counterText: '',
-                    contentPadding: EdgeInsets.zero,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: AppTheme.primary, width: 1.5),
-                    ),
-                  ),
-                  onChanged: (v) => _onDigitChanged(i, v),
-                ),
-              );
-            }),
+          // OTP input
+          Pinput(
+            length: 6,
+            controller: _otpController,
+            enabled: !_verifying,
+            onCompleted: (pin) => _verify(pin),
+            defaultPinTheme: defaultPinTheme,
+            focusedPinTheme: focusedPinTheme,
           ),
           const SizedBox(height: 12),
 
@@ -221,8 +191,8 @@ class _OTPSheetState extends State<_OTPSheet> {
             child: ElevatedButton(
               onPressed: _verifying
                   ? null
-                  : _controllers.every((c) => c.text.length == 1)
-                      ? _verify
+                  : _otpController.text.length == 6
+                      ? () => _verify(_otpController.text)
                       : null,
               child: _verifying
                   ? const SizedBox(
