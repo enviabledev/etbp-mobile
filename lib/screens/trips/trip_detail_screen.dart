@@ -30,6 +30,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   Map<String, dynamic>? _review;
   bool _submittingReview = false;
   Map<String, dynamic>? _calendarData;
+  List<Map<String, dynamic>> _addons = [];
 
   @override
   void initState() {
@@ -60,6 +61,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           debugPrint('Calendar data load failed: $e');
           _calendarData = null;
         }
+      }
+      // Load addons
+      try {
+        final addonsRes = await api.get(Endpoints.bookingAddons(widget.ref));
+        _addons = List<Map<String, dynamic>>.from(addonsRes.data is List ? addonsRes.data : []);
+      } catch (_) {
+        _addons = [];
       }
       setState(() {
         _booking = booking;
@@ -443,6 +451,41 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               ]),
             ),
           ),
+          // Add-ons
+          if (_addons.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Add-ons', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  ..._addons.map((a) {
+                    final qty = a['quantity'] ?? 1;
+                    final total = a['total_price'] ?? 0;
+                    final paid = a['status'] == 'paid';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(children: [
+                        const Text('🧳 ', style: TextStyle(fontSize: 16)),
+                        Expanded(child: Text('$qty Extra Bag${qty > 1 ? 's' : ''}', style: const TextStyle(fontSize: 14))),
+                        Text(formatCurrency(total.toDouble()), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: paid ? AppTheme.success.withValues(alpha: 0.1) : AppTheme.warning.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(paid ? 'Paid' : 'Pending', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: paid ? AppTheme.success : AppTheme.warning)),
+                        ),
+                      ]),
+                    );
+                  }),
+                ]),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
 
           // QR code
