@@ -74,7 +74,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await tokenStorage.saveTokens(res.data['access_token'], res.data['refresh_token']);
       final authNotifier = ref.read(authStateProvider.notifier);
       await authNotifier.checkAuth();
-      if (mounted) context.go('/');
+      if (mounted) {
+        final hasBooking = ref.read(bookingProvider).trip != null;
+        context.go(hasBooking ? '/booking/passengers' : '/home');
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in failed: $e'), backgroundColor: AppTheme.error));
     } finally {
