@@ -3,14 +3,26 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class SocialAuthService {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+  // serverClientId MUST be the WEB client ID — this is how Google issues an idToken on Android
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: '555019812841-9k98drsb01i2gl0h4birm7ogu6odg2hp.apps.googleusercontent.com',
+  );
 
   Future<String?> googleSignIn() async {
     try {
       final account = await _googleSignIn.signIn();
-      if (account == null) return null;
+      if (account == null) {
+        debugPrint('Google sign-in: user cancelled');
+        return null;
+      }
       final auth = await account.authentication;
       debugPrint('Google sign-in: ${account.email}');
+      debugPrint('Google idToken present: ${auth.idToken != null}');
+      if (auth.idToken == null) {
+        debugPrint('ERROR: No idToken received. Check serverClientId and SHA-1 fingerprint in Firebase.');
+        return null;
+      }
       return auth.idToken;
     } catch (e) {
       debugPrint('Google sign-in error: $e');
