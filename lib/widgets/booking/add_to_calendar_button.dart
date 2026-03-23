@@ -36,7 +36,7 @@ class _AddToCalendarButtonState extends State<AddToCalendarButton> {
     );
 
     try {
-      Add2Calendar.addEvent2Cal(event);
+      await Add2Calendar.addEvent2Cal(event);
       if (mounted) {
         setState(() => _added = true);
         ScaffoldMessenger.of(context).showSnackBar(
