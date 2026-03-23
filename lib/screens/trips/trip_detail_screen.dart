@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -320,11 +321,21 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 setSheetState(() => _addingLuggage = true);
                 try {
                   final api = ref.read(apiClientProvider);
-                  await api.post(Endpoints.addLuggage(widget.ref), data: {'quantity': qty, 'payment_method': method});
+                  final res = await api.post(Endpoints.addLuggage(widget.ref), data: {
+                    'quantity': qty,
+                    'payment_method': method,
+                    if (method == 'card') 'callback_url': 'https://app.enviabletransport.ng/my-trips/${widget.ref}',
+                  });
                   if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$qty extra bag(s) added!')));
-                    _load();
+                    final paymentUrl = res.data['payment_url'] as String?;
+                    if (method == 'card' && paymentUrl != null && paymentUrl.isNotEmpty) {
+                      Navigator.pop(ctx2);
+                      GoRouter.of(ctx2).push('/booking/payment?url=${Uri.encodeComponent(paymentUrl)}&ref=luggage-${widget.ref}');
+                    } else {
+                      Navigator.pop(ctx2);
+                      ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(content: Text('$qty extra bag(s) added!')));
+                      _load();
+                    }
                   }
                 } catch (e) {
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.error));
