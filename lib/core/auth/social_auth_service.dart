@@ -11,6 +11,8 @@ class SocialAuthService {
 
   Future<String?> googleSignIn() async {
     try {
+      // Sign out first to clear cached account and force the account picker
+      await _googleSignIn.signOut();
       final account = await _googleSignIn.signIn();
       if (account == null) {
         debugPrint('Google sign-in: user cancelled');

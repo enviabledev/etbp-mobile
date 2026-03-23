@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:etbp_mobile/core/api/api_client.dart';
 import 'package:etbp_mobile/core/auth/auth_service.dart';
+import 'package:etbp_mobile/core/auth/social_auth_service.dart';
 import 'package:etbp_mobile/core/auth/token_storage.dart';
 import 'package:etbp_mobile/core/notifications/push_service.dart';
 import 'package:etbp_mobile/models/user.dart';
@@ -76,6 +77,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     try {
       final pushService = _ref.read(pushServiceProvider);
       await pushService.unregister();
+    } catch (_) {}
+    try {
+      final socialAuth = SocialAuthService();
+      await socialAuth.googleSignOut();
     } catch (_) {}
     await _authService.logout();
     state = const AsyncValue.data(null);
